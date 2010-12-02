@@ -81,13 +81,51 @@ function keydown(e)
 // document.onkeydown=keydown;
 </script>
 
-	<style type="text/css" media="screen"><!--
+	<script> // Script for JSON interaction to load video assets, etc.
+		var pageSize = 6;
+	
+		function clearVideos() {
+			$('div.items').empty();
+		}
+		
+		function addVideo( program ) {
+			items = $('div.items');
+			if (items.children().length && (items.children().last().children().length<pageSize)) {
+				items.children().last().append("<img src='" + program.associated_images[1].url + "' /> ");
+			} else {
+				items.append("<div> <img src='" + program.associated_images[1].url + "' /> </div>");
+			}
+		}
+
+		function loadPrograms( programs ) {
+			var i;
+			
+			clearVideos();
+			for (i=0; i<programs.count; i++)
+				addVideo( programs.results[i] );
+			
+		}
+	
+		function loadVideos() {
+			$.ajax({
+				  dataType: 'jsonp',
+				  jsonp: 'json_callback',
+				  jsonpCallback: 'invoke_function',
+				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/programs/?fields=associated_images',
+				  success: function (e) {
+				      loadPrograms( e );
+				  },
+				});
+		}
+	</script>
+
+	<style>
 		html { background: navy; background: -webkit-gradient(linear, left top, left bottom, from(#000000), to(#003366)); margin: 0px; padding: 0px; height: 100%; overflow: hidden }
 		body { margin: 0px; height: 100%; overflow: hidden }
 		div#header { padding: 1em }
 		#pbslogo { float: left; vertical-align: top }
 		#locallogo { float: right; vertical-align: top }
-		div#categories { clear: both; width: 100%; display: table; border-spacing: 1em }
+		div#categories { clear: both; width: 100%; display: table; border-spacing: 1em; opacity: 0.25  }
 		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 1px solid navy; height: 2em;
 					background: blue; background: -webkit-gradient(linear, left bottom, left top, from(#f0f0f0), to(#7f7fc0));
 					text-align: center; vertical-align: middle; font: 11pt "Gill Sans", sans-serif}
@@ -209,8 +247,6 @@ function keydown(e)
 				   
 				   <!-- root element for the items --> 
 				   <div class="items"> 
-				   
-				      <!-- 1-5 --> 
 				      <div> 
 				         <img src="episode.png" /> 
 				         <img src="episode.png" /> 
@@ -219,8 +255,6 @@ function keydown(e)
 				         <img src="episode.png" /> 
 				         <img src="episode.png" /> 
 				      </div> 
-				      
-				      <!-- 5-10 --> 
 				      <div> 
 				         <img src="episode.png" /> 
 				         <img src="episode.png" /> 
@@ -229,17 +263,6 @@ function keydown(e)
 				         <img src="episode.png" /> 
 				         <img src="episode.png" /> 
 				      </div> 
-				      
-				      <!-- 10-15 --> 
-				      <div> 
-				         <img src="episode.png" /> 
-				         <img src="episode.png" /> 
-				         <img src="episode.png" /> 
-				         <img src="episode.png" /> 
-				         <img src="episode.png" /> 
-				         <img src="episode.png" /> 
-				      </div> 
-				      
 				   </div> 
 				   
 				</div> 
@@ -255,7 +278,8 @@ function keydown(e)
 		 
 			// initialize scrollable
 			$(".scrollable").scrollable();
-		 
+
+			loadVideos();
 		});
 
 		// grab scrollable and its API
@@ -263,6 +287,8 @@ function keydown(e)
 
 		// disable keyboard navigation
 //		instance.getConf().keyboard = false;
+		
+		
 		</script> 
 
 	</body>
