@@ -7,163 +7,186 @@
 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 		<script src="http://cdn.jquerytools.org/1.2.5/full/jquery.tools.min.js"></script> 
 	</head>
-<script> /* Stuff for focus/d-pad navigation - not yet implemented */
-function keydown(e)
-{
-	var next;
 	
-    if (!e) return;
-
-    var focus = $(".selected").first();
-   	if (!focus) {
-   		$('.cat').first().addClass('selected');
-   		focus = $('.cat').first();
-   	}
-
-    if (focus.hasClass('cat')) { //We're in the category band
-    	switch(e.keyCode) {
+	<script> /* Stuff for focus/d-pad navigation  */
+	function keydown(e)
+	{
+		var next;
+		
+	    if (!e) return;
+	
+	    var focus = $(".selected").first();
+	   	if (!focus) {
+	   		$('.cat').first().addClass('selected');
+	   		focus = $('.cat').first();
+	   	}
+	
+	    if (focus.hasClass('cat')) { //We're in the category band
+	    	switch(e.keyCode) {
+			    case 37:// Left arrow
+			    	// move to next
+			    	next = $(".selected").prev();
+			    	if (next.length == 0)
+			    		next = $('.cat').last();
+			    	focus.removeClass("selected");
+			    	next.addClass("selected");
+		    		break;
+			
+			    case 39:// Right arrow
+			    	// move to previous
+			    	next = $(".selected").next();
+			    	if (next.length == 0)
+			    		next = $('.cat').first();
+			    	focus.removeClass("selected");
+			    	next.addClass("selected");
+			    	break;
+			
+			    case 38:// Up arrow
+			    	// TODO: Move to local station??
+			        break;
+			
+			    case 40:// Down arrow
+					// TODO: Move to player controls
+			    	break;
+			
+			    case 13:// Enter/select - 
+			    	switch (focus[0].innerText)
+			    	{
+			    	case "Spotlight":
+			    		loadSpotlight();
+			    		break;
+			    	case "Previews":
+			    		loadPreviews();
+			    		break;
+			    	case "Programs":
+			    		$('#programguide').removeClass('hidden');
+			    		focus.removeClass('selected').addClass('alsoselected');
+						loadProgramGuide();	// this should take care of selecting the first item when they're loaded
+//			    		$('#programguide div.items img').first().addClass('selected');
+			    		break;
+			    	case "Favorites":
+			    	case "Recently Viewed":
+			    		clearVideos();
+			    		break;
+			    	case "Local":
+			    	}
+			    	
+			        break;
+			    
+			    default:
+			}
+			return;
+	    }
+	    else if (focus.hasClass('episode')) { //We're in the video selection band
+	
+	    } 
+	    else if (focus.hasClass('program')) { //We're in the program guide
+	    	switch(e.keyCode) {
+			    case 37:// Left arrow
+			    	// move to next
+			    	next = $(".selected").prev();
+			    	if (next.length == 0) { //we're moving past the end of the strip
+			    		var p = $(".selected").parent().prev(); // see if there's another "page" before this one
+			    		if (p.length) { // yep - scroll back one page, and set the focus on the last item.
+			    			var api = $('#programguide .scrollable').data("scrollable");
+			    			api.prev();
+			    			next = p.children().last();
+			    		} else { // we're at the beginning - go to the last item on the last page
+			    			var api = $('#programguide .scrollable').data("scrollable");
+			    			api.end();
+			    			next = $(".selected").parent().parent().children().last().children().last();
+			    		}
+			    	}
+			    	focus.removeClass("selected");
+			    	next.addClass("selected");
+		    		break;
+			
+			    case 39:// Right arrow
+			    	// move to previous
+			    	next = $(".selected").next();
+			    	if (next.length == 0) { //we're moving past the end of the strip
+			    		var p = $(".selected").parent().next(); // see if there's another "page" after this one
+			    		if (p.length) { // yep - scroll forward one page, and set the focus on the first item.
+			    			// get access to the API
+			    			var api = $('#programguide .scrollable').data("scrollable");
+			    			api.next();
+			    			next = p.children().first();
+			    		} else { // we're at the end - go to the first item on the first page
+			    			var api = $('#programguide .scrollable').data("scrollable");
+			    			api.begin();
+			    			next = $(".selected").parent().parent().children().first().children().first();
+			    		}
+			    	}
+			    	focus.removeClass("selected");
+			    	next.addClass("selected");
+			    	break;
+			
+			    case 13:// Enter/select - 
+					selectProgram( $('.selected').first() );
+			    	// ...and fall through to close the program guide
+			    	
+			    case 38:// Up arrow
+			    case 27:// ESC key
+			    case 40:// Down arrow
+					$('#programguide').addClass('hidden');	// re-hide the program bar
+					focus.removeClass('selected');			// de-select the program
+					$('#Programs').addClass('selected').removeClass('alsoselected');
+	    	}
+	    	return;
+	    } else {
+	    	//We're in the player controls
+	    }
+	
+	    
+	    var f = 0;
+		var l = document.links.length;
+		while ((f<l) &&(document.links[f] != focusElement ))
+				f++;
+		if ( f >= l ) { // focused element not found - error case
+			focusElement=document.links[0];
+			focusElement.focus();
+			return;
+		}
+		
+		switch(e.keyCode) {
 		    case 37:// Left arrow
-		    	// move to next
-		    	next = $(".selected").prev();
-		    	if (next.length == 0)
-		    		next = $('.cat').last();
-		    	focus.removeClass("selected");
-		    	next.addClass("selected");
-	    		break;
-		
-		    case 39:// Right arrow
-		    	// move to previous
-		    	next = $(".selected").next();
-		    	if (next.length == 0)
-		    		next = $('.cat').first();
-		    	focus.removeClass("selected");
-		    	next.addClass("selected");
-		    	break;
-		
-		    case 38:// Up arrow
-		    	// TODO: Move to local station??
+		    	if ((f%rowLength)==0) 
+		    		f+=rowLength;
+		    	f--;
 		        break;
 		
-		    case 40:// Down arrow
-				// TODO: Move to player controls
+		    case 38:// Up arrow
+		    	f -= rowLength;
+		        break;
+		
+		    case 39:// Right arrow
+		    	if ((f%rowLength)==rowLength-1) 
+		    		f-=rowLength;
+		      	f++;
 		    	break;
 		
-		    case 13:// Enter/select - 
-		    	switch (focus[0].innerText)
-		    	{
-		    	case "Spotlight":
-		    		loadSpotlight();
-		    		break;
-		    	case "Previews":
-		    		loadPreviews();
-		    		break;
-		    	case "Programs":
-		    		$('#programguide').removeClass('hidden');
-		    		focus.removeClass('selected').addClass('alsoselected');
-		    		$('#programguide div.items img').first().addClass('selected');
-		    		break;
-		    	case "Favorites":
-		    	case "Recently Viewed":
-		    		clearVideos();
-		    		break;
-		    	case "Local":
-		    	}
-		    	
+		    case 40:// Down arrow
+		    	f += rowLength;
+		        break;
+		
+		    case 13:// Enter/select
 		        break;
 		    
 		    default:
+		    	return;
 		}
-		return;
-    }
-    else if (focus.hasClass('episode')) { //We're in the video selection band
-
-    } 
-    else if (focus.hasClass('program')) { //We're in the program guide
-    	switch(e.keyCode) {
-		    case 37:// Left arrow
-		    	// move to next
-		    	next = $(".selected").prev();
-		    	if (next.length == 0)
-		    		next = $('.cat').last();
-		    	focus.removeClass("selected");
-		    	next.addClass("selected");
-	    		break;
-		
-		    case 39:// Right arrow
-		    	// move to previous
-		    	next = $(".selected").next();
-		    	if (next.length == 0)
-		    		next = $('.cat').first();
-		    	focus.removeClass("selected");
-		    	next.addClass("selected");
-		    	break;
-		
-		    case 13:// Enter/select - 
-				selectProgram( $('.selected').first() );
-		    	// ...and fall through to close the program guide
-		    	
-		    case 38:// Up arrow
-		    case 27:// ESC key
-		    case 40:// Down arrow
-				$('#programguide').addClass('hidden');	// re-hide the program bar
-				focus.removeClass('selected');			// de-select the program
-				$('#Programs').addClass('selected').removeClass('alsoselected');
-    	}
-    	return;
-    } else {
-    	//We're in the player controls
-    }
-
-    
-    var f = 0;
-	var l = document.links.length;
-	while ((f<l) &&(document.links[f] != focusElement ))
-			f++;
-	if ( f >= l ) { // focused element not found - error case
-		focusElement=document.links[0];
+		while ( f < 0 )  // if we've wrapped up/left from the top row
+			f += l;
+		while ( f >= l )	
+			f -= l;
+		focusElement = document.links[f];
 		focusElement.focus();
-		return;
 	}
 	
-	switch(e.keyCode) {
-	    case 37:// Left arrow
-	    	if ((f%rowLength)==0) 
-	    		f+=rowLength;
-	    	f--;
-	        break;
-	
-	    case 38:// Up arrow
-	    	f -= rowLength;
-	        break;
-	
-	    case 39:// Right arrow
-	    	if ((f%rowLength)==rowLength-1) 
-	    		f-=rowLength;
-	      	f++;
-	    	break;
-	
-	    case 40:// Down arrow
-	    	f += rowLength;
-	        break;
-	
-	    case 13:// Enter/select
-	        break;
-	    
-	    default:
-	    	return;
-	}
-	while ( f < 0 )  // if we've wrapped up/left from the top row
-		f += l;
-	while ( f >= l )	
-		f -= l;
-	focusElement = document.links[f];
-	focusElement.focus();
-}
-
-</script>
+	</script>
 
 	<script> // Script for JSON interaction to load video assets, etc.
-		var pageSize = 6;
+		var pageSize = 6;  // page size for image-based scrolling browsers
 
 		function selectProgram( prog ) {
 			// TODO: this function should switch programs
@@ -202,6 +225,7 @@ function keydown(e)
 			} else {
 				items.append("<div> <img class='program' src='" + bestThumbnail( video.associated_images ) + "' /> </div>");
 			}
+			// Need to store: prog url #
 		}
 
 		function loadPrograms( programs ) {
@@ -212,6 +236,8 @@ function keydown(e)
 			for (i=0; i<programs.count; i++)
 				addProgram( items, programs.results[i] );
 			
+			if ($('.alsoselected').length)	// we're in the program guide, so select the first item
+				$('#programguide div.items img').first().addClass('selected');
 		}
 
 		function addVideo( items, video ) {
@@ -234,7 +260,6 @@ function keydown(e)
 			
 			for (i=0; i<videos.length; i++)
 				addVideo( items, videos[i] );
-			
 		}
 
 		function loadSpotlight() {
@@ -277,7 +302,7 @@ function keydown(e)
 	<style>
 		/* There should only be one "selected" element - 
 		   "alsoselected"" is to keep the visual highlight on the "programs" button while the guide is visible. */
-		.selected, .alsoselected { border: 4px solid #afcf4d ! important; }
+		.selected, .alsoselected { border: 3px solid #afcf4d ! important; }
 		div.cat.selected, div.cat.alsoselected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(126,173,32))); }
 	
 	
@@ -287,8 +312,8 @@ function keydown(e)
 		div#header { padding: 1em }
 		#pbslogo { float: left; vertical-align: top }
 		#locallogo { float: right; vertical-align: top }
-		div#categories { clear: both; width: 100%; display: table; border-spacing: 1em;   }
-		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 3px solid #003344; height: 1.6em;
+		div#categories { clear: both; width: 100%; display: inline-table; border-spacing: 1em;   }
+		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 2px solid #003344; height: 1.6em;
 					background: #003355; background: -webkit-gradient(linear, left bottom, left top, from(#003344), to(#007799));
 					text-align: center; vertical-align: middle; 
 					font: bold 14pt "Arial", sans-serif; color: #f0f0f0 }
@@ -490,8 +515,9 @@ function keydown(e)
 			// Set up our keyboard nav code
 			document.onkeydown=keydown;
 
-//			loadSpotlight();
-			loadProgramGuide();  // get it loaded in the background
+			loadSpotlight();
+//			loadProgramGuide();
+    		
 		});
 
 	
