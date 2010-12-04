@@ -41,12 +41,19 @@
 			    	next.addClass("selected");
 			    	break;
 			
-			    case 38:// Up arrow
-			    	// TODO: Move to local station??
-			        break;
-			
 			    case 40:// Down arrow
-					// TODO: Move to player controls
+/* I thought this was a good idea once.
+if ( focus[0].innerText == "Programs") {
+			    		$('#programguide').removeClass('hidden');
+			    		focus.removeClass('selected').addClass('alsoselected');
+						loadProgramGuide();	// this should take care of selecting the first item when they're loaded
+		    		} else {
+*/
+
+						// TODO: Move to player controls  (this moves to the program list)
+				    	focus.addClass('alsoselected').removeClass("selected");
+				    	$('#boxstrip .episode').first().addClass("selected");
+//		    		}
 			    	break;
 			
 			    case 13:// Enter/select - 
@@ -78,6 +85,56 @@
 			return;
 	    }
 	    else if (focus.hasClass('episode')) { //We're in the video selection band
+	    	switch(e.keyCode) {
+		    case 37:// Left arrow
+		    	// move to next
+		    	next = $(".selected").prev();
+		    	if (next.length == 0) { //we're moving past the end of the strip
+		    		var p = $(".selected").parent().prev(); // see if there's another "page" before this one
+		    		if (p.length) { // yep - scroll back one page, and set the focus on the last item.
+		    			var api = $('#boxstrip .scrollable').data("scrollable");
+		    			api.prev();
+		    			next = p.children().last();
+		    		} else { // we're at the beginning - go to the last item on the last page
+		    			var api = $('#boxstrip .scrollable').data("scrollable");
+		    			api.end();
+		    			next = $(".selected").parent().parent().children().last().children().last();
+		    		}
+		    	}
+		    	focus.removeClass("selected");
+		    	next.addClass("selected");
+	    		break;
+		
+		    case 39:// Right arrow
+		    	// move to previous
+		    	next = $(".selected").next();
+		    	if (next.length == 0) { //we're moving past the end of the strip
+		    		var p = $(".selected").parent().next(); // see if there's another "page" after this one
+		    		if (p.length) { // yep - scroll forward one page, and set the focus on the first item.
+		    			// get access to the API
+		    			var api = $('#boxstrip .scrollable').data("scrollable");
+		    			api.next();
+		    			next = p.children().first();
+		    		} else { // we're at the end - go to the first item on the first page
+		    			var api = $('#boxstrip .scrollable').data("scrollable");
+		    			api.begin();
+		    			next = $(".selected").parent().parent().children().first().children().first();
+		    		}
+		    	}
+		    	focus.removeClass("selected");
+		    	next.addClass("selected");
+		    	break;
+		
+		    case 13:// Enter/select - 
+				selectVideo( $('.selected').first() );
+		    	// ...and fall through to close the program guide
+		    	
+		    case 38:// Up arrow
+		    case 27:// ESC key
+				focus.removeClass('selected');
+				$('.alsoselected').addClass('selected').removeClass('alsoselected');
+    	}
+    	return;
 	
 	    } 
 	    else if (focus.hasClass('program')) { //We're in the program guide
@@ -189,7 +246,14 @@
 		var pageSize = 6;  // page size for image-based scrolling browsers
 
 		function selectProgram( prog ) {
-			// TODO: this function should switch programs
+		    var id = prog.data( "resourceURI" );
+		    loadProgram( id );
+		}
+		
+		function selectVideo( prog ) {
+		    var player = document.getElementById( "player" );
+		    var id = prog.data( "mediaID" ).toString();
+		    player.playerLoad( id );
 		}
 		
 		function clearVideos() {
@@ -219,13 +283,18 @@
 			return images[0].url;
 		}
 		
-		function addProgram( items, video ) {
+		function addProgram( items, program ) {
 			if (items.children().length && (items.children().last().children().length<pageSize)) {
-				items.children().last().append("<img class='program' src='" + bestThumbnail( video.associated_images ) + "' /> ");
+				items.children().last().append("<img class='program' src='" + bestThumbnail( program.associated_images ) + "' /> ");
 			} else {
-				items.append("<div> <img class='program' src='" + bestThumbnail( video.associated_images ) + "' /> </div>");
+				items.append("<div> <img class='program' src='" + bestThumbnail( program.associated_images ) + "' /> </div>");
 			}
-			// Need to store: prog url #
+			var item = items.children().last().children().last();	// either way, the item ends up being at the end of the last page.
+			// Need to store: prog url, shortdesc, length?
+			var item = items.children().last().children().last();	// either way, the item ends up being at the end of the last page.
+			item.data( "description ", program.short_description );
+			item.data( "resourceURI", program.resource_uri );
+			item.data( "title", program.title );			
 		}
 
 		function loadPrograms( programs ) {
@@ -246,9 +315,17 @@
 			} else {
 				items.append("<div> <img class='episode' src='" + bestThumbnail( video.associated_images ) + "' /> </div>");
 			}
+			var item = items.children().last().children().last();	// either way, the item ends up being at the end of the last page.
+			item.data( "description ", video.short_description );
+			item.data( "mediaID", video.tp_media_object_id );
+			if ( video.mediafiles && video.mediafiles.length )
+				item.data( "lengthinms", video.mediafiles[0].length_mseconds );
+			item.data( "title", video.title );
+			if (video.program)
+				item.data( "program", video.program.title );
 		}
 
-		function loadSpotlightVideos( spotlight ) {
+		function loadVideos( spotlight ) {
 			var i;
 			var items = $('#boxstrip div.items');
 			
@@ -262,6 +339,20 @@
 				addVideo( items, videos[i] );
 		}
 
+		function loadProgramVideos( spotlight ) {
+			var i;
+			var items = $('#boxstrip div.items');
+			
+			items.empty();
+			if (!spotlight || !spotlight.results || spotlight.results.length<1)
+				return;
+			
+			var videos = spotlight.results;
+			
+			for (i=0; i<videos.length; i++)
+				addVideo( items, videos[i] );
+		}
+
 		function loadSpotlight() {
 			$.ajax({
 				  dataType: 'jsonp',
@@ -269,7 +360,7 @@
 				  jsonpCallback: 'invoke_function',
 				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/groups/?filter_name=gtv_spotlight&fields=associated_images,videos',
 				  success: function (e) {
-					  loadSpotlightVideos( e );
+					  loadVideos( e );
 				  },
 				});
 		}
@@ -281,7 +372,20 @@
 				  jsonpCallback: 'invoke_function',
 				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/groups/?filter_name=gtv_previews&fields=associated_images,videos',
 				  success: function (e) {
-					  loadSpotlightVideos( e );
+					  loadVideos( e );
+				  },
+				});
+		}
+
+		function loadProgram( URI ) {
+			var progID = URI.substring( URI.search("/programs/") + 10, URI.length - 1);
+			$.ajax({
+				  dataType: 'jsonp',
+				  jsonp: 'json_callback',
+				  jsonpCallback: 'invoke_function',
+				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/videos/?filter_available_datetime__gt=2010-01-01&filter_program=' + progID + '&fields=associated_images,videos',
+				  success: function (e) {
+					  loadProgramVideos( e );
 				  },
 				});
 		}
@@ -305,18 +409,22 @@
 		.selected, .alsoselected { border: 3px solid #afcf4d ! important; }
 		div.cat.selected, div.cat.alsoselected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(126,173,32))); }
 	
-	
-		html {  background: navy; background: -webkit-gradient(linear, left top, left bottom, from(#000000), to(#003366)); 
-				margin: 0px; padding: 0px; height: 100%; overflow: hidden }
+		#player { position: absolute; width:100%; height: 100%; }
+		html { background: black; margin: 0px; padding: 0px; height: 100%; overflow: hidden }
 		body { margin: 0px; height: 100%; overflow: hidden }
-		div#header { padding: 1em }
-		#pbslogo { float: left; vertical-align: top }
-		#locallogo { float: right; vertical-align: top }
-		div#categories { clear: both; width: 100%; display: inline-table; border-spacing: 1em;   }
+		div#header { padding: 1em; position: absolute; }
+		#headerbackdrop { opacity: 0.5; position: absolute; left: 0px; top: 0px; width:100%; height: 100px; 
+							background:  -webkit-gradient(linear, left bottom, left top, from(#000), to(#606060)); }
+		#pbslogo { float: left; margin-top:1em }
+		div#categories { aclear: both; width: 80%; display: inline-table; border-spacing: 1em;   }
 		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 2px solid #003344; height: 1.6em;
 					background: #003355; background: -webkit-gradient(linear, left bottom, left top, from(#003344), to(#007799));
 					text-align: center; vertical-align: middle; 
 					font: bold 14pt "Arial", sans-serif; color: #f0f0f0 }
+		div.cat#locallogo { background: black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040));
+					border: 2px solid black; 
+					}
+		#imglogo { height: 1.3em }
 		div#player { position: absolute; width:100%; height: 100%; top:0px; left: 0px }
 		div#controls { text-align: center; position: absolute; top: 55%; left: 0px; width: 100% }
 		div#boxstrip { position: absolute; width: 100%; height: 150px; left: 0px; bottom: 0px; background: #000020 }
@@ -416,14 +524,35 @@
 					background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#003040)); }
 	</style>
 	<body>
-		<div id='header'><img id=pbslogo src="pbs-logo.png"><img id='locallogo' src="kcts.png"></div>
-		<div id='categories'>
-			<div class="cat selected">Spotlight</div>
-			<div class="cat">Previews</div>
-			<div id="Programs" class="cat">Programs</div>
-			<div class="cat">Favorites</div>
-			<div class="cat">Recently Viewed</div>
-			<div class="cat">Local</div>
+		<object id="player" width="1152" height="648" >
+		      <param name = "movie" value = "http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.swf"></param>
+		      <param name="flashvars" value="video=1108763899&player=gtv&width=1152&height=648"></param>
+		      <param name="allowFullScreen" value="true"></param >
+		      <param name ="allowscriptaccess" value = "always" > </param>
+		      <param name="wmode" value="transparent"></param >
+		      <embed name="flashplayer" src="http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.swf"
+		             flashvars="video=1108763899&player=gtv&width=1152&height=648"
+		             type="application/x-shockwave-flash"
+		             allowscriptaccess="always"
+		             wmode="transparent"
+		             allowfullscreen="true"
+		             awidth="1152"
+		             aheight="648"
+		             bgcolor="#000000">
+		      </embed>
+		   </object>
+
+		<div id="headerbackdrop"></div>
+		<div id='header'>
+			<img id=pbslogo src="pbs-logo.png">
+			<div id='categories'>
+				<div class="cat selected">Spotlight</div>
+				<div class="cat">Previews</div>
+				<div id="Programs" class="cat">Programs</div>
+				<div class="cat">Favorites</div>
+				<div class="cat">Recently Viewed</div>
+				<div id='locallogo' class="cat"><img id='imglogo' src="kcts.png"></div>
+			</div>
 		</div>
 		<div id='player'>
 			<div id='controls'><img src="player.png" width=350></div>
