@@ -52,7 +52,7 @@ if ( focus[0].innerText == "Programs") {
 
 						// TODO: Move to player controls  (this moves to the program list)
 				    	focus.addClass('alsoselected').removeClass("selected");
-				    	$('#boxstrip .episode').first().addClass("selected");
+				    	$('#cplaypause').first().addClass("selected");
 //		    		}
 			    	break;
 			
@@ -127,7 +127,7 @@ if ( focus[0].innerText == "Programs") {
 		
 		    case 13:// Enter/select - 
 				selectVideo( $('.selected').first() );
-		    	// ...and fall through to close the program guide
+		    	return;
 		    	
 		    case 38:// Up arrow
 		    case 27:// ESC key
@@ -192,6 +192,50 @@ if ( focus[0].innerText == "Programs") {
 	    	return;
 	    } else {
 	    	//We're in the player controls
+	    	switch(e.keyCode) {
+			    case 37:// Left arrow
+			    	// move to next
+			    	next = $(".selected").prev(".visible");
+			    	if (next.length == 0)
+			    		next = $('#controls .visible').last();
+			    	focus.removeClass("selected");
+			    	next.addClass("selected");
+		    		break;
+			
+			    case 39:// Right arrow
+			    	// move to previous
+			    	next = $(".selected").next(".visible");
+			    	if (next.length == 0)
+			    		next = $('#controls .visible').first();
+			    	focus.removeClass("selected");
+			    	next.addClass("selected");
+			    	break;
+			
+			    case 40:// Down arrow - move to the video bar
+			    	focus.removeClass("selected");
+			    	$('#boxstrip .episode').first().addClass("selected");
+			    	break;
+			
+			    case 38:// Up arrow - move to the top bar
+					focus.removeClass('selected');
+					$('.alsoselected').addClass('selected').removeClass('alsoselected');
+					break;
+
+			    case 13:// Enter/select - 
+			    	switch (focus[0].id)
+			    	{
+				    	case "crew":
+				    		rewind();
+				    		break;
+				    	case "cffwd":
+				    		ffwd();
+				    		break;
+				    	case "cplaypause":
+				    		playPause();
+				    		break;
+			    	}
+			}
+			return;
 	    }
 	
 	    
@@ -255,7 +299,20 @@ if ( focus[0].innerText == "Programs") {
 		    var id = prog.data( "mediaID" ).toString();
 		    player.playerLoad( id );
 		}
-		
+	
+		function playPause() {
+			var player = document.getElementById( "player" );
+			player.playerEvent("pause");
+		}
+		function ffwd() {
+			var player = document.getElementById( "player" );
+			player.playerEvent("ffwd");
+		}
+		function rewind() {
+			var player = document.getElementById( "player" );
+			player.playerEvent("rwd");
+		}
+
 		function clearVideos() {
 			$('#boxstrip div.items').empty();
 		}
@@ -408,27 +465,40 @@ if ( focus[0].innerText == "Programs") {
 		   "alsoselected"" is to keep the visual highlight on the "programs" button while the guide is visible. */
 		.selected, .alsoselected { border: 3px solid #afcf4d ! important; }
 		div.cat.selected, div.cat.alsoselected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(126,173,32))); }
-	
+
+		#controls .selected { border-style: none ! important; }
+		#controls img.selected, #controls .selected img { background: #afcf4d }
+
 		#player { position: absolute; width:100%; height: 100%; }
 		html { background: black; margin: 0px; padding: 0px; height: 100%; overflow: hidden }
 		body { margin: 0px; height: 100%; overflow: hidden }
 		div#header { padding: 1em; position: absolute; }
-		#headerbackdrop { opacity: 0.5; position: absolute; left: 0px; top: 0px; width:100%; height: 100px; 
+		#headerbackdrop { opacity: 0.5; position: absolute; left: 0px; top: 0px; width:100%; height: 110px; 
 							background:  -webkit-gradient(linear, left bottom, left top, from(#000), to(#606060)); }
 		#pbslogo { float: left; margin-top:1em }
-		div#categories { aclear: both; width: 80%; display: inline-table; border-spacing: 1em;   }
+		div#categories { aclear: both; width: 85%; display: inline-table; border-spacing: 1em;   }
 		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 2px solid #003344; height: 1.6em;
 					background: #003355; background: -webkit-gradient(linear, left bottom, left top, from(#003344), to(#007799));
 					text-align: center; vertical-align: middle; 
-					font: bold 14pt "Arial", sans-serif; color: #f0f0f0 }
+					font:  14pt "Arial", sans-serif; color: #f0f0f0 }
+		div.cat#rv { width: 18% }
 		div.cat#locallogo { background: black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040));
 					border: 2px solid black; 
 					}
 		#imglogo { height: 1.3em }
-		div#player { position: absolute; width:100%; height: 100%; top:0px; left: 0px }
-		div#controls { text-align: center; position: absolute; top: 55%; left: 0px; width: 100% }
-		div#boxstrip { position: absolute; width: 100%; height: 150px; left: 0px; bottom: 0px; background: #000020 }
-		div.aligner { width: 1076px; margin: 0px auto; }
+		div#playercontrols { position: absolute; width:100%; top:55%; left: 0px }
+		div#controls { width: 400px; border: 3px solid white; margin: 0px auto; border-radius: 10px; background: black; opacity: 0.65 }
+		#ctimeplayed, #ctimerem { text-align: center; vertical-align: top; display: inline-block; 
+								  font: 16pt "Arial", sans-serif; color: white; width: 100px; height: 40px; padding-top: 14px }
+		#crew, #cffwd, #cplay, #cpause { margin: 10px 12px; vertical-align: top;  }
+		#cplay.hide, #cpause.hide { display: none }
+		div#boxstrip { position: absolute; width: 100%; height: 170px; left: 0px; bottom: 0px; border-top: 1px solid gray; }
+		div#boxback { position: absolute; width: 100%; height: 100%; background: black; border-top: 1px solid black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040)); opacity: 0.75 }
+		div#boxfront { position: absolute; width: 100%; height: 100% }
+		div#titlestrip {width: 100%; padding: 20px 0px 0px 100px }
+		#title { font: bold 16pt "Arial", sans-serif; color: #ffffff; text-transform: uppercase; }
+		#shortdesc { font: 16pt "Arial", sans-serif; padding-left: 1.5em; color: #afcf4d }
+		div.aligner { width: 1012px; margin: 0px auto; padding: 0px 8px }
 		
 		/* scroller buttons */
 		/* get rid of those system borders being generated for A tags */
@@ -436,26 +506,26 @@ if ( focus[0].innerText == "Programs") {
 
 		/* prev, next, prevPage and nextPage buttons */
 		a.browse {
-			background:url(hori_large.png) no-repeat;
+			background:url(arrows.png) no-repeat;
 			display:inline-block;
-			width:30px;
-			height:30px;
-			margin:40px 10px;
+			width:50px;
+			height:50px;
+			margin:20px 0px;
 			cursor:pointer;
 			font-size:1px;
 			vertical-align: middle;
 		}
 		
 		/* right */
-		a.right 		{ background-position: 0 -30px; clear:right; margin-right: 0px;}
-		a.right:hover 	{ background-position:-30px -30px; }
-		a.right:active 	{ background-position:-60px -30px; } 
+		a.right 		{ background-position: 0 -50px; clear:right; margin-right: 0px;}
+		a.right:hover 	{ background-position:-50px -50px; }
+		a.right:active 	{ background-position:-100px -50px; } 
 		
 		
 		/* left */
 		a.left			{ margin-left: 0px; } 
-		a.left:hover  	{ background-position:-30px 0; }
-		a.left:active  	{ background-position:-60px 0; }
+		a.left:hover  	{ background-position:-50px 0; }
+		a.left:active  	{ background-position:-100px 0; }
 		
 		/* disabled navigational button */
 		a.disabled { visibility:hidden !important; }
@@ -469,11 +539,11 @@ if ( focus[0].innerText == "Programs") {
 			/* required settings */
 			position:relative;
 			overflow:hidden;
-			width: 976px;
+			width: 900px;
 			height:120px;
 			display: inline-block;
 			vertical-align: middle;
-		
+			margin-top: -10px;
 			/* custom decorations */
 			/* background: #00003f; */
 		}
@@ -499,7 +569,7 @@ if ( focus[0].innerText == "Programs") {
 		/* single scrollable item */
 		.scrollable img {
 			float:left;
-			margin:20px 5px 20px 21px;
+			margin:20px 5px 20px 12px;
 			padding:2px;
 			/* border:1px solid #ccc; */
 			width:128px;
@@ -550,14 +620,21 @@ if ( focus[0].innerText == "Programs") {
 				<div class="cat">Previews</div>
 				<div id="Programs" class="cat">Programs</div>
 				<div class="cat">Favorites</div>
-				<div class="cat">Recently Viewed</div>
+				<div class="cat" id="rv">Recently Viewed</div>
 				<div id='locallogo' class="cat"><img id='imglogo' src="kcts.png"></div>
 			</div>
 		</div>
-		<div id='player'>
-			<div id='controls'><img src="player.png" width=350></div>
+		<div id='playercontrols'>
+			<div id='controls'><span id="ctimeplayed">00:00</span>
+			<img class='visible' id='crew' src="rew.png">
+			<span class='visible' id="cplaypause"><img id='cplay' class='hide' src="play.png"><img id='cpause' src="pause.png"></span>
+			<img class='visible' id='cffwd' src="ffwd.png">
+			<span id="ctimerem">00:00</span></div>
 		</div>
 		<div id='boxstrip'>
+			<div id='boxback'></div>
+			<div id='boxfront'>
+			<div id='titlestrip'><span id='title'>Frontline</span><span id='shortdesc'>The Released (53:35)</span></div>
 			<div class='aligner'>
 				<!-- "previous page" action -->
 				<a class="prev browse left"></a> 
@@ -585,10 +662,11 @@ if ( focus[0].innerText == "Programs") {
 				      </div> 
 				   </div> 
 				   
-				</div> 
+				</div>
 				 
 				<!-- "next page" action --> 
 				<a class="next browse right"></a> 
+			</div>
 			</div>
 		</div>
 
