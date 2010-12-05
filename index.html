@@ -15,13 +15,25 @@
 		
 	    if (!e) return;
 	
+	   	switch (e.keyCode) {	// Transport controls should always work
+    	case 177:
+    		rewind();
+    		return;
+    	case 176:
+    		ffwd();
+    		return;
+    	case 179:
+    		playPause();
+    		return;
+	   	}
+
 	    var focus = $(".selected").first();
 	   	if (!focus) {
 	   		$('.cat').first().addClass('selected');
 	   		focus = $('.cat').first();
 	   	}
-	
-	    if (focus.hasClass('cat')) { //We're in the category band
+
+	   	if (focus.hasClass('cat')) { //We're in the category band
 	    	switch(e.keyCode) {
 			    case 37:// Left arrow
 			    	// move to next
@@ -103,6 +115,7 @@ if ( focus[0].innerText == "Programs") {
 		    	}
 		    	focus.removeClass("selected");
 		    	next.addClass("selected");
+				setVideoText( next );
 	    		break;
 		
 		    case 39:// Right arrow
@@ -123,6 +136,7 @@ if ( focus[0].innerText == "Programs") {
 		    	}
 		    	focus.removeClass("selected");
 		    	next.addClass("selected");
+				setVideoText( next );
 		    	break;
 		
 		    case 13:// Enter/select - 
@@ -132,7 +146,7 @@ if ( focus[0].innerText == "Programs") {
 		    case 38:// Up arrow
 		    case 27:// ESC key
 				focus.removeClass('selected');
-				$('.alsoselected').addClass('selected').removeClass('alsoselected');
+		    	$('#cplaypause').first().addClass("selected");	// move to the video player controls
     	}
     	return;
 	
@@ -303,6 +317,8 @@ if ( focus[0].innerText == "Programs") {
 		function playPause() {
 			var player = document.getElementById( "player" );
 			player.playerEvent("pause");
+			// toggle play/pause button display
+			$('#cplaypause').toggleClass('playing');
 		}
 		function ffwd() {
 			var player = document.getElementById( "player" );
@@ -358,7 +374,9 @@ if ( focus[0].innerText == "Programs") {
 			var i;
 			var items = $('#programguide div.items');
 			
+			$('#programguide .scrollable').data("scrollable").begin();
 			items.empty();
+
 			for (i=0; i<programs.count; i++)
 				addProgram( items, programs.results[i] );
 			
@@ -373,7 +391,7 @@ if ( focus[0].innerText == "Programs") {
 				items.append("<div> <img class='episode' src='" + bestThumbnail( video.associated_images ) + "' /> </div>");
 			}
 			var item = items.children().last().children().last();	// either way, the item ends up being at the end of the last page.
-			item.data( "description ", video.short_description );
+			item.data( "description", video.short_description );
 			item.data( "mediaID", video.tp_media_object_id );
 			if ( video.mediafiles && video.mediafiles.length )
 				item.data( "lengthinms", video.mediafiles[0].length_mseconds );
@@ -382,11 +400,59 @@ if ( focus[0].innerText == "Programs") {
 				item.data( "program", video.program.title );
 		}
 
+		   function timeElapsed(elapsedTime){
+		       document.getElementById('elapsedTime').innerHTML =
+		"<b>"+elapsedTime+"</b>";
+		   }
+		   function timeRemaining(remainingTime){
+		       document.getElementById('remainingTime').innerHTML =
+		"<b>"+remainingTime+"</b>";
+		}
+		 
+		function setVideoText( video ) {
+			var maxDescLength = 90;
+			var title = video.data( "title");
+			var lengthinms =  video.data( "lengthinms");
+			
+			maxDescLength -= title.length;	// title takes up room
+			if ( lengthinms )
+				maxDescLength -= 10;  // Leave room for the time, too.
+			$('#title').empty().append( title );
+			var desc = video.data( "description");
+			if ( desc.length > maxDescLength ) {
+				var i = desc.lastIndexOf(" ", maxDescLength );
+				if (i==-1)
+					i=maxDescLength;
+				desc = desc.slice( 0, i );
+				desc += "...";
+			}
+			$('#shortdesc').empty().append( desc );
+			if ( lengthinms ) {
+				var seconds = Math.floor( lengthinms / 1000 );
+				var minutes = Math.floor( seconds/60 );
+				seconds -= ( minutes * 60 );
+				var hours = Math.floor( minutes/60 );
+				
+				$('#shortdesc').append( " (" );
+				if (hours>0) {
+					$('#shortdesc').append( hours + ":" );
+					if (minutes<10)
+						$('#shortdesc').append( "0" );
+				}
+				$('#shortdesc').append( minutes + ":" )
+				if (seconds<10)
+					$('#shortdesc').append( "0" );
+				$('#shortdesc').append( seconds + ")"  );
+			}
+		}
+
 		function loadVideos( spotlight ) {
 			var i;
 			var items = $('#boxstrip div.items');
 			
+			$('#boxstrip .scrollable').data("scrollable").begin();
 			items.empty();
+
 			if (!spotlight || !spotlight.results || spotlight.results.length<1)
 				return;
 			
@@ -394,13 +460,16 @@ if ( focus[0].innerText == "Programs") {
 			
 			for (i=0; i<videos.length; i++)
 				addVideo( items, videos[i] );
+			setVideoText( items.children().first().children().first() );
 		}
 
 		function loadProgramVideos( spotlight ) {
 			var i;
 			var items = $('#boxstrip div.items');
 			
+			$('#boxstrip .scrollable').data("scrollable").begin();
 			items.empty();
+			
 			if (!spotlight || !spotlight.results || spotlight.results.length<1)
 				return;
 			
@@ -408,9 +477,12 @@ if ( focus[0].innerText == "Programs") {
 			
 			for (i=0; i<videos.length; i++)
 				addVideo( items, videos[i] );
+			setVideoText( items.children().first().children().first() );
 		}
 
 		function loadSpotlight() {
+			var items = $('#boxstrip div.items');
+			
 			$.ajax({
 				  dataType: 'jsonp',
 				  jsonp: 'json_callback',
@@ -423,6 +495,11 @@ if ( focus[0].innerText == "Programs") {
 		}
 
 		function loadPreviews() {
+			var items = $('#boxstrip div.items');
+			
+			items.empty();
+			$('#boxstrip .scrollable').data("scrollable").begin();
+
 			$.ajax({
 				  dataType: 'jsonp',
 				  jsonp: 'json_callback',
@@ -467,7 +544,7 @@ if ( focus[0].innerText == "Programs") {
 		div.cat.selected, div.cat.alsoselected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(126,173,32))); }
 
 		#controls .selected { border-style: none ! important; }
-		#controls img.selected, #controls .selected img { background: #afcf4d }
+		#controls img.selected, #controls .selected img { text-shadow: 0 0 0.2em #8F7; abackground: #afcf4d }
 
 		#player { position: absolute; width:100%; height: 100%; }
 		html { background: black; margin: 0px; padding: 0px; height: 100%; overflow: hidden }
@@ -486,12 +563,18 @@ if ( focus[0].innerText == "Programs") {
 					border: 2px solid black; 
 					}
 		#imglogo { height: 1.3em }
+
 		div#playercontrols { position: absolute; width:100%; top:55%; left: 0px }
 		div#controls { width: 400px; border: 3px solid white; margin: 0px auto; border-radius: 10px; background: black; opacity: 0.65 }
 		#ctimeplayed, #ctimerem { text-align: center; vertical-align: top; display: inline-block; 
 								  font: 16pt "Arial", sans-serif; color: white; width: 100px; height: 40px; padding-top: 14px }
-		#crew, #cffwd, #cplay, #cpause { margin: 10px 12px; vertical-align: top;  }
-		#cplay.hide, #cpause.hide { display: none }
+		div#controls .visible { margin: 3px 7px 0px; }
+		#crew { display:inline-block; width: 50px; height: 45px; background: url('rews.png');  }
+		#cffwd { display:inline-block; width: 50px; height: 45px; background: url('ffwds.png');  }
+		#cplaypause { display:inline-block; width: 40px; height: 45px; background: url('pauses.png'); }
+		#cplaypause.playing { background: url('plays.png') }
+		#controls .selected { background-position: 0px -45px }
+
 		div#boxstrip { position: absolute; width: 100%; height: 170px; left: 0px; bottom: 0px; border-top: 1px solid gray; }
 		div#boxback { position: absolute; width: 100%; height: 100%; background: black; border-top: 1px solid black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040)); opacity: 0.75 }
 		div#boxfront { position: absolute; width: 100%; height: 100% }
@@ -626,9 +709,9 @@ if ( focus[0].innerText == "Programs") {
 		</div>
 		<div id='playercontrols'>
 			<div id='controls'><span id="ctimeplayed">00:00</span>
-			<img class='visible' id='crew' src="rew.png">
-			<span class='visible' id="cplaypause"><img id='cplay' class='hide' src="play.png"><img id='cpause' src="pause.png"></span>
-			<img class='visible' id='cffwd' src="ffwd.png">
+			<span class='visible' id='crew' src="rew.png"></span>
+			<span class='visible playing' id="cplaypause"></span>
+			<span class='visible' id='cffwd' src="ffwd.png"></span>
 			<span id="ctimerem">00:00</span></div>
 		</div>
 		<div id='boxstrip'>
