@@ -9,17 +9,37 @@
 	</head>
 	
 	<script> /* Stuff for focus/d-pad navigation  */
+	var fullScreen = false;
+	var fadeoutTimer = null;
+	
+	function fadeOut() {
+		fullScreen=true;
+		$('#topheader').fadeOut(1000);
+		$('#playercontrols').fadeOut(1000);
+		$('#boxstrip').fadeOut(1000);
+	}
+	function startFadeoutTimer() {
+		fadeoutTimer = window.setTimeout("fadeOut();", 5000);
+	}
+	
+	function cancelFadeoutTimer() {
+		if (fadeoutTimer != null ) {
+			window.clearTimeout( fadeoutTimer );
+			fadeoutTimer = null;
+		}
+	}
+	
 	function keydown(e)
 	{
 		var next;
-		
+
 	    if (!e) return;
 	
 	   	switch (e.keyCode) {	// Transport controls should always work
-    	case 177:
+    	case 227:  // 177:
     		rewind();
     		return;
-    	case 176:
+    	case 228:  // 176:
     		ffwd();
     		return;
     	case 179:
@@ -27,6 +47,15 @@
     		return;
 	   	}
 
+		if (fullScreen) {	// Everything's hidden - bring it back
+			fullScreen = false;
+    		$("#topheader").fadeIn(1);
+    		$("#playercontrols").fadeIn(1);
+    		$("#boxstrip").fadeIn(1);
+    		startFadeoutTimer();
+    		return;
+		}
+		
 	    var focus = $(".selected").first();
 	   	if (!focus) {
 	   		$('.cat').first().addClass('selected');
@@ -34,9 +63,11 @@
 	   	}
 
 	   	if (focus.hasClass('cat')) { //We're in the category band
+			cancelFadeoutTimer();
+			startFadeoutTimer();
+
 	    	switch(e.keyCode) {
-			    case 37:// Left arrow
-			    	// move to next
+			    case 37:// Left arrow - move to next
 			    	next = $(".selected").prev();
 			    	if (next.length == 0)
 			    		next = $('.cat').last();
@@ -44,8 +75,11 @@
 			    	next.addClass("selected");
 		    		break;
 			
-			    case 39:// Right arrow
-			    	// move to previous
+			    case 38:// Up arrow - hide all controls
+			    	fadeOut();
+			    	break;
+			
+			    case 39:// Right arrow - move to previous
 			    	next = $(".selected").next();
 			    	if (next.length == 0)
 			    		next = $('.cat').first();
@@ -53,22 +87,14 @@
 			    	next.addClass("selected");
 			    	break;
 			
-			    case 40:// Down arrow
-/* I thought this was a good idea once.
-if ( focus[0].innerText == "Programs") {
-			    		$('#programguide').removeClass('hidden');
-			    		focus.removeClass('selected').addClass('alsoselected');
-						loadProgramGuide();	// this should take care of selecting the first item when they're loaded
-		    		} else {
-*/
-
-						// TODO: Move to player controls  (this moves to the program list)
-				    	focus.addClass('alsoselected').removeClass("selected");
-				    	$('#cplaypause').first().addClass("selected");
-//		    		}
+			    case 40:// Down arrow - move to the player controls
+			    	focus.addClass('alsoselected').removeClass("selected");
+			    	$('#cplaypause').first().addClass("selected");
+					cancelFadeoutTimer();	// no fading while we're on the player controls
 			    	break;
 			
 			    case 13:// Enter/select - 
+					cancelFadeoutTimer();	// because user will go down and browse next
 			    	switch (focus[0].innerText)
 			    	{
 			    	case "Spotlight":
@@ -97,6 +123,9 @@ if ( focus[0].innerText == "Programs") {
 			return;
 	    }
 	    else if (focus.hasClass('episode')) { //We're in the video selection band
+			cancelFadeoutTimer();
+			startFadeoutTimer();
+
 	    	switch(e.keyCode) {
 		    case 37:// Left arrow
 		    	// move to next
@@ -145,13 +174,15 @@ if ( focus[0].innerText == "Programs") {
 		    	
 		    case 38:// Up arrow
 		    case 27:// ESC key
-				focus.removeClass('selected');
-		    	$('#cplaypause').first().addClass("selected");	// move to the video player controls
+				focus.removeClass('selected').addClass('alsoselected');
+				$('#cplaypause').first().addClass("selected");	// move to the video player controls
+				cancelFadeoutTimer();	// no fading while we're on the player controls
     	}
     	return;
 	
 	    } 
 	    else if (focus.hasClass('program')) { //We're in the program guide
+			cancelFadeoutTimer();
 	    	switch(e.keyCode) {
 			    case 37:// Left arrow
 			    	// move to next
@@ -202,10 +233,12 @@ if ( focus[0].innerText == "Programs") {
 					$('#programguide').addClass('hidden');	// re-hide the program bar
 					focus.removeClass('selected');			// de-select the program
 					$('#Programs').addClass('selected').removeClass('alsoselected');
+					startFadeoutTimer();
 	    	}
 	    	return;
 	    } else {
-	    	//We're in the player controls
+	    	cancelFadeoutTimer();
+	    	//We're in the video player controls
 	    	switch(e.keyCode) {
 			    case 37:// Left arrow
 			    	// move to next
@@ -227,22 +260,38 @@ if ( focus[0].innerText == "Programs") {
 			
 			    case 40:// Down arrow - move to the video bar
 			    	focus.removeClass("selected");
-			    	$('#boxstrip .episode').first().addClass("selected");
+			    	var sel = $('#boxstrip .episode.alsoselected');
+			    	if (sel.length>0)
+			    		sel.first().removeClass("alsoselected").addClass("selected");
+			    	else
+				    	$('#boxstrip .episode').first().addClass("selected");
 			    	break;
 			
 			    case 38:// Up arrow - move to the top bar
 					focus.removeClass('selected');
-					$('.alsoselected').addClass('selected').removeClass('alsoselected');
+					$('.cat.alsoselected').addClass('selected').removeClass('alsoselected');
 					break;
 
 			    case 13:// Enter/select - 
 			    	switch (focus[0].id)
 			    	{
 				    	case "crew":
-				    		rewind();
+				    		if (focus.hasClass('active')) {	// stop rewinding
+			    				playPause();
+			    				playPause();
+				    		}
+				    		else
+				    			rewind();
+			    			focus.toggleClass('active');
 				    		break;
 				    	case "cffwd":
-				    		ffwd();
+				    		if (focus.hasClass('active')) {	// stop ffwding
+			    				playPause();
+			    				playPause();
+				    		}
+				    		else
+					    		ffwd();
+			    			focus.toggleClass('active');
 				    		break;
 				    	case "cplaypause":
 				    		playPause();
@@ -251,53 +300,7 @@ if ( focus[0].innerText == "Programs") {
 			}
 			return;
 	    }
-	
-	    
-	    var f = 0;
-		var l = document.links.length;
-		while ((f<l) &&(document.links[f] != focusElement ))
-				f++;
-		if ( f >= l ) { // focused element not found - error case
-			focusElement=document.links[0];
-			focusElement.focus();
-			return;
-		}
-		
-		switch(e.keyCode) {
-		    case 37:// Left arrow
-		    	if ((f%rowLength)==0) 
-		    		f+=rowLength;
-		    	f--;
-		        break;
-		
-		    case 38:// Up arrow
-		    	f -= rowLength;
-		        break;
-		
-		    case 39:// Right arrow
-		    	if ((f%rowLength)==rowLength-1) 
-		    		f-=rowLength;
-		      	f++;
-		    	break;
-		
-		    case 40:// Down arrow
-		    	f += rowLength;
-		        break;
-		
-		    case 13:// Enter/select
-		        break;
-		    
-		    default:
-		    	return;
-		}
-		while ( f < 0 )  // if we've wrapped up/left from the top row
-			f += l;
-		while ( f >= l )	
-			f -= l;
-		focusElement = document.links[f];
-		focusElement.focus();
 	}
-	
 	</script>
 
 	<script> // Script for JSON interaction to load video assets, etc.
@@ -311,6 +314,8 @@ if ( focus[0].innerText == "Programs") {
 		function selectVideo( prog ) {
 		    var player = document.getElementById( "player" );
 		    var id = prog.data( "mediaID" ).toString();
+		    document.getElementById('elapsedTime').innerHTML = "--:--";
+		    document.getElementById('remainingTime').innerHTML = "--:--";
 		    player.playerLoad( id );
 		}
 	
@@ -319,6 +324,12 @@ if ( focus[0].innerText == "Programs") {
 			player.playerEvent("pause");
 			// toggle play/pause button display
 			$('#cplaypause').toggleClass('playing');
+		}
+		function play() {
+			var player = document.getElementById( "player" );
+			player.playerEvent("play");
+			// toggle play/pause button display
+			$('#cplaypause').addClass('playing');
 		}
 		function ffwd() {
 			var player = document.getElementById( "player" );
@@ -400,17 +411,15 @@ if ( focus[0].innerText == "Programs") {
 				item.data( "program", video.program.title );
 		}
 
-		   function timeElapsed(elapsedTime){
-		       document.getElementById('elapsedTime').innerHTML =
-		"<b>"+elapsedTime+"</b>";
-		   }
-		   function timeRemaining(remainingTime){
-		       document.getElementById('remainingTime').innerHTML =
-		"<b>"+remainingTime+"</b>";
+		function timeElapsed(elapsedTime){
+		    document.getElementById('elapsedTime').innerHTML = elapsedTime;
+		}
+		function timeRemaining(remainingTime){
+		    document.getElementById('remainingTime').innerHTML =	remainingTime;
 		}
 		 
 		function setVideoText( video ) {
-			var maxDescLength = 90;
+			var maxDescLength = 85;
 			var title = video.data( "title");
 			var lengthinms =  video.data( "lengthinms");
 			
@@ -432,6 +441,7 @@ if ( focus[0].innerText == "Programs") {
 				var minutes = Math.floor( seconds/60 );
 				seconds -= ( minutes * 60 );
 				var hours = Math.floor( minutes/60 );
+				minutes -= hours*60;
 				
 				$('#shortdesc').append( " (" );
 				if (hours>0) {
@@ -540,8 +550,11 @@ if ( focus[0].innerText == "Programs") {
 	<style>
 		/* There should only be one "selected" element - 
 		   "alsoselected"" is to keep the visual highlight on the "programs" button while the guide is visible. */
-		.selected, .alsoselected { border: 3px solid #afcf4d ! important; }
-		div.cat.selected, div.cat.alsoselected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(126,173,32))); }
+		.selected { border: 3px solid #afcf4d ! important; }
+		div.cat.selected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(126,173,32))); }
+
+		.alsoselected { border: 3px solid #839b39 ! important; }
+		div.cat.alsoselected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(94,129,24))); }
 
 		#controls .selected { border-style: none ! important; }
 		#controls img.selected, #controls .selected img { text-shadow: 0 0 0.2em #8F7; abackground: #afcf4d }
@@ -554,26 +567,27 @@ if ( focus[0].innerText == "Programs") {
 							background:  -webkit-gradient(linear, left bottom, left top, from(#000), to(#606060)); }
 		#pbslogo { float: left; margin-top:1em }
 		div#categories { aclear: both; width: 85%; display: inline-table; border-spacing: 1em;   }
-		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 2px solid #003344; height: 1.6em;
+		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 2px solid #003344; height: 2em;
 					background: #003355; background: -webkit-gradient(linear, left bottom, left top, from(#003344), to(#007799));
 					text-align: center; vertical-align: middle; 
-					font:  14pt "Arial", sans-serif; color: #f0f0f0 }
+					font:  bold 20px "Arial", sans-serif; color: #f0f0f0 }
 		div.cat#rv { width: 18% }
 		div.cat#locallogo { background: black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040));
 					border: 2px solid black; 
 					}
 		#imglogo { height: 1.3em }
 
-		div#playercontrols { position: absolute; width:100%; top:55%; left: 0px }
-		div#controls { width: 400px; border: 3px solid white; margin: 0px auto; border-radius: 10px; background: black; opacity: 0.65 }
-		#ctimeplayed, #ctimerem { text-align: center; vertical-align: top; display: inline-block; 
-								  font: 16pt "Arial", sans-serif; color: white; width: 100px; height: 40px; padding-top: 14px }
-		div#controls .visible { margin: 3px 7px 0px; }
-		#crew { display:inline-block; width: 50px; height: 45px; background: url('rews.png');  }
-		#cffwd { display:inline-block; width: 50px; height: 45px; background: url('ffwds.png');  }
-		#cplaypause { display:inline-block; width: 40px; height: 45px; background: url('pauses.png'); }
-		#cplaypause.playing { background: url('plays.png') }
-		#controls .selected { background-position: 0px -45px }
+		div#playercontrols { position: absolute; width:100%; top:50%; left: 0px }
+		div#controls { width: 410px; border: 3px solid white; margin: 0px auto; border-radius: 10px; background: black; opacity: 0.85 }
+		#elapsedTime, #remainingTime { text-align: center; vertical-align: top; display: inline-block; 
+								  font: 20px "Arial", sans-serif; color: white; width: 100px; height: 40px; padding-top: 17px }
+		div#controls .visible { margin: 0px 3px 0px; }
+		#crew { display:inline-block; width: 60px; height: 55px; background: url('rews.png');  }
+		#cffwd { display:inline-block; width: 60px; height: 55px; background: url('ffwds.png');  }
+		#cplaypause { display:inline-block; width: 50px; height: 55px; background: url('plays.png') }
+		#cplaypause.playing { background: url('pauses.png'); }
+		#controls .selected { background-position: 0px -55px }
+		#controls .selected.active { background-position: -60px -55px }
 
 		div#boxstrip { position: absolute; width: 100%; height: 170px; left: 0px; bottom: 0px; border-top: 1px solid gray; }
 		div#boxback { position: absolute; width: 100%; height: 100%; background: black; border-top: 1px solid black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040)); opacity: 0.75 }
@@ -676,15 +690,15 @@ if ( focus[0].innerText == "Programs") {
 		div#progstrip div.aligner { background: #000020; border: 3px solid #c0c0c0; -webkit-border-radius: 20px;
 					background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#003040)); }
 	</style>
-	<body>
-		<object id="player" width="1152" height="648" >
+	<body> <!-- 1152x648 -->
+		<object id="player" width="1080" height="608" >
 		      <param name = "movie" value = "http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.swf"></param>
-		      <param name="flashvars" value="video=1108763899&player=gtv&width=1152&height=648"></param>
+		      <param name="flashvars" value="video=1108763899&player=gtv&width=1080&height=608"></param>
 		      <param name="allowFullScreen" value="true"></param >
 		      <param name ="allowscriptaccess" value = "always" > </param>
 		      <param name="wmode" value="transparent"></param >
 		      <embed name="flashplayer" src="http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.swf"
-		             flashvars="video=1108763899&player=gtv&width=1152&height=648"
+		             flashvars="video=1108763899&player=gtv&width=1080&height=608"
 		             type="application/x-shockwave-flash"
 		             allowscriptaccess="always"
 		             wmode="transparent"
@@ -695,24 +709,26 @@ if ( focus[0].innerText == "Programs") {
 		      </embed>
 		   </object>
 
-		<div id="headerbackdrop"></div>
-		<div id='header'>
-			<img id=pbslogo src="pbs-logo.png">
-			<div id='categories'>
-				<div class="cat selected">Spotlight</div>
-				<div class="cat">Previews</div>
-				<div id="Programs" class="cat">Programs</div>
-				<div class="cat">Favorites</div>
-				<div class="cat" id="rv">Recently Viewed</div>
-				<div id='locallogo' class="cat"><img id='imglogo' src="kcts.png"></div>
+		<div id='topheader'>
+			<div id="headerbackdrop"></div>
+			<div id='header'>
+				<img id=pbslogo src="pbs-logo.png">
+				<div id='categories'>
+					<div class="cat selected">Spotlight</div>
+					<div class="cat">Previews</div>
+					<div id="Programs" class="cat">Programs</div>
+					<div class="cat">Favorites</div>
+					<div class="cat" id="rv">Recently Viewed</div>
+					<div id='locallogo' class="cat"><img id='imglogo' src="kcts.png"></div>
+				</div>
 			</div>
 		</div>
 		<div id='playercontrols'>
-			<div id='controls'><span id="ctimeplayed">00:00</span>
+			<div id='controls'><span id="elapsedTime">--:--</span>
 			<span class='visible' id='crew' src="rew.png"></span>
 			<span class='visible playing' id="cplaypause"></span>
 			<span class='visible' id='cffwd' src="ffwd.png"></span>
-			<span id="ctimerem">00:00</span></div>
+			<span id="remainingTime">--:--</span></div>
 		</div>
 		<div id='boxstrip'>
 			<div id='boxback'></div>
@@ -727,22 +743,6 @@ if ( focus[0].innerText == "Programs") {
 				   
 				   <!-- root element for the items --> 
 				   <div class="items"> 
-				      <div> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				      </div> 
-				      <div> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				         <img class="episode" src="episode.png" /> 
-				      </div> 
 				   </div> 
 				   
 				</div>
@@ -766,22 +766,6 @@ if ( focus[0].innerText == "Programs") {
 					   
 					   <!-- root element for the items --> 
 					   <div class="items"> 
-					      <div> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					      </div> 
-					      <div> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					         <img class="program" src="episode.png" /> 
-					      </div> 
 					   </div> 
 					   
 					</div> 
