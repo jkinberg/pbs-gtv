@@ -18,8 +18,11 @@
 		$('#playercontrols').fadeOut(1000);
 		$('#boxstrip').fadeOut(1000);
 	}
+	
 	function startFadeoutTimer() {
-		fadeoutTimer = window.setTimeout("fadeOut();", 5000);
+		if (fadeoutTimer != null )
+			window.clearTimeout( fadeoutTimer );
+		fadeoutTimer = window.setTimeout("fadeOut();fadeoutTimer=null;", 5000);
 	}
 	
 	function cancelFadeoutTimer() {
@@ -36,12 +39,14 @@
 	    if (!e) return;
 	
 	   	switch (e.keyCode) {	// Transport controls should always work
-    	case 227:  // 177:
+    	case 227:  
     		rewind();
     		return;
-    	case 228:  // 176:
+    	case 228:
     		ffwd();
     		return;
+       	// case 176: previous video
+       	// case 177: next video
     	case 179:
     		playPause();
     		return;
@@ -107,11 +112,12 @@
 			    		$('#programguide').removeClass('hidden');
 			    		focus.removeClass('selected').addClass('alsoselected');
 						loadProgramGuide();	// this should take care of selecting the first item when they're loaded
-//			    		$('#programguide div.items img').first().addClass('selected');
 			    		break;
 			    	case "Favorites":
-			    	case "Recently Viewed":
 			    		clearVideos();
+			    		break;
+			    	case "Recently Viewed":
+			    		loadRecentVideos();
 			    		break;
 			    	case "Local":
 			    	}
@@ -224,7 +230,7 @@
 			    	break;
 			
 			    case 13:// Enter/select - 
-					selectProgram( $('.selected').first() );
+					selectProgram( $('.selected').first(), $('.selected').first().attr('src') );
 			    	// ...and fall through to close the program guide
 			    	
 			    case 38:// Up arrow
@@ -305,17 +311,80 @@
 
 	<script> // Script for JSON interaction to load video assets, etc.
 		var pageSize = 6;  // page size for image-based scrolling browsers
+		var recentVideos = new Array();
+		
+		function addRecentVideo( video ) {	//takes the jQuery object representing the <img>
+			var i;
+			var mediaID = video.data( "mediaID" );
 
-		function selectProgram( prog ) {
+			for (i=0;i<recentVideos.length;i++) {
+				if (recentVideos[i].mediaID == mediaID) {	// found it, already in the list
+					// ideally, we would sort it to the front of the list first - TODO
+					return;
+				}
+			}
+
+			// Didn't find it - add it to the end of the list.
+			var newItem = new Object();
+
+			newItem.src = video.attr('src');
+			newItem.desc = video.data( "description" );
+			newItem.mediaID = mediaID;
+			newItem.lengthinms = video.data( "lengthinms" );
+			newItem.title = video.data( "title" );
+			newItem.airdate = video.data( "airdate" );
+			newItem.program = video.data( "program" );
+
+			recentVideos.push( newItem );
+		}
+
+		function loadRecentVideos() {
+			var i;
+			var items = $('#boxstrip div.items');
+			
+			$('#boxstrip .scrollable').data("scrollable").begin();
+			items.empty();
+			$('#title').empty();
+			$('#shortdesc').empty();
+
+			for (i=recentVideos.length; i>0; i--) {	// Go in reverse order - we pushed them on the stack
+				var newItem = recentVideos[i-1];
+				if (items.children().length && (items.children().last().children().length<pageSize)) {
+					items.children().last().append("<img class='episode' src='" + newItem.src + "' /> ");
+				} else {
+					items.append("<div> <img class='episode' src='" + newItem.src + "' /> </div>");
+				}
+				var item = items.children().last().children().last();	// either way, the item ends up being at the end of the last page.
+				item.data( "description", newItem.desc );
+				item.data( "mediaID", newItem.mediaID );
+				if ( newItem.lengthinms )
+					item.data( "lengthinms", newItem.lengthinms );
+				item.data( "title", newItem.title );
+				item.data( "airdate", newItem.airdate );
+				if (newItem.program)
+					item.data( "program", newItem.program.title );				
+			}
+
+			if (recentVideos.length) {
+				// Set the focus on the first video now
+				setVideoText( items.children().first().children().first() );
+				$(".selected").removeClass("selected").addClass("alsoselected");
+				items.children().first().children().first().addClass('selected');
+			}
+		}
+
+		function selectProgram( prog, fallback ) {
 		    var id = prog.data( "resourceURI" );
-		    loadProgram( id );
+		    loadProgram( id, fallback );
 		}
 		
 		function selectVideo( prog ) {
 		    var player = document.getElementById( "player" );
 		    var id = prog.data( "mediaID" ).toString();
+		    var orig = prog.data( "original" );	// This is for debugging
 		    document.getElementById('elapsedTime').innerHTML = "--:--";
 		    document.getElementById('remainingTime').innerHTML = "--:--";
+		    addRecentVideo( prog );
 		    player.playerLoad( id );
 		}
 	
@@ -353,7 +422,7 @@
 			var i;
 			
 			if (!images || !images.length)
-				return null;
+				return programFallbackImage;
 			
 			for (i = 0; i<images.length; i++) {  // Prefer iPhone-Small thumbnail
 				if (images[i].type && (images[i].type.usage_type == "iPhone-Small"))
@@ -379,6 +448,7 @@
 			item.data( "description ", program.short_description );
 			item.data( "resourceURI", program.resource_uri );
 			item.data( "title", program.title );			
+			item.data( "original", program );	// This is for debugging
 		}
 
 		function loadPrograms( programs ) {
@@ -396,6 +466,8 @@
 		}
 
 		function addVideo( items, video ) {
+			if (video.is_segment)	// don't add segments, only full programs
+				return;
 			if (items.children().length && (items.children().last().children().length<pageSize)) {
 				items.children().last().append("<img class='episode' src='" + bestThumbnail( video.associated_images ) + "' /> ");
 			} else {
@@ -407,8 +479,10 @@
 			if ( video.mediafiles && video.mediafiles.length )
 				item.data( "lengthinms", video.mediafiles[0].length_mseconds );
 			item.data( "title", video.title );
+			item.data( "airdate", video.airdate );
 			if (video.program)
 				item.data( "program", video.program.title );
+			item.data( "original", video );  // This is for debugging
 		}
 
 		function timeElapsed(elapsedTime){
@@ -456,21 +530,36 @@
 			}
 		}
 
+		function compareAirdate( a, b ) {	// actually returns backward of sort() param, to order most-recent-first
+			var dateA = new Date( a.airdate );
+			var dateB = new Date( b.airdate );
+			if ( dateA < dateB )
+				return 1;
+			if ( dateA > dateB )
+				return -1;
+			return 0;
+			// format: airdate: "2010-09-20 04:01:00"
+		}
+
 		function loadVideos( spotlight ) {
 			var i;
 			var items = $('#boxstrip div.items');
 			
 			$('#boxstrip .scrollable').data("scrollable").begin();
 			items.empty();
+			$('#title').empty();
+			$('#shortdesc').empty();
 
 			if (!spotlight || !spotlight.results || spotlight.results.length<1)
 				return;
 			
 			var videos = spotlight.results[0].videos;
-			
+
+			videos.sort( compareAirdate );
 			for (i=0; i<videos.length; i++)
 				addVideo( items, videos[i] );
 			setVideoText( items.children().first().children().first() );
+			items.children().first().children().first().addClass('alsoselected');
 		}
 
 		function loadProgramVideos( spotlight ) {
@@ -479,19 +568,26 @@
 			
 			$('#boxstrip .scrollable').data("scrollable").begin();
 			items.empty();
+			$('#title').empty();
+			$('#shortdesc').empty();
 			
 			if (!spotlight || !spotlight.results || spotlight.results.length<1)
 				return;
 			
 			var videos = spotlight.results;
-			
+
+			videos.sort( compareAirdate );
 			for (i=0; i<videos.length; i++)
 				addVideo( items, videos[i] );
 			setVideoText( items.children().first().children().first() );
+			programFallbackImage = null; // clear the fallback - we don't want it to apply to Spotlight or Preview items
 		}
 
 		function loadSpotlight() {
-			var items = $('#boxstrip div.items');
+			$('#boxstrip .scrollable').data("scrollable").begin();
+			$('#boxstrip div.items').empty();
+			$('#title').empty();
+			$('#shortdesc').empty();
 			
 			$.ajax({
 				  dataType: 'jsonp',
@@ -505,11 +601,12 @@
 		}
 
 		function loadPreviews() {
-			var items = $('#boxstrip div.items');
-			
-			items.empty();
 			$('#boxstrip .scrollable').data("scrollable").begin();
+			$('#boxstrip div.items').empty();
+			$('#title').empty();
+			$('#shortdesc').empty();
 
+			cancelFadeoutTimer();
 			$.ajax({
 				  dataType: 'jsonp',
 				  jsonp: 'json_callback',
@@ -521,14 +618,41 @@
 				});
 		}
 
-		function loadProgram( URI ) {
+		var programFallbackImage = null;
+		
+		function loadProgram( URI, fallback ) {
 			var progID = URI.substring( URI.search("/programs/") + 10, URI.length - 1);
+			var d = new Date();
+			var today = "";
+
+			$('#boxstrip .scrollable').data("scrollable").begin();
+			$('#boxstrip div.items').empty();
+			$('#title').empty();
+			$('#shortdesc').empty();
+
+			programFallbackImage = fallback;	// Not all episodes have an associated image - use the program image as a fallback
+/*
+			today += d.getFullYear();
+			if (d.getMonth()<9) 
+				today += "-0";
+			else
+				today += "-";
+			today += (d.getMonth()+1);
+			if (d.getDate()<10)
+				today += "-0";
+			else
+				today += "-";
+			today += d.getDate();
+*/			
+			cancelFadeoutTimer();
 			$.ajax({
 				  dataType: 'jsonp',
 				  jsonp: 'json_callback',
 				  jsonpCallback: 'invoke_function',
-				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/videos/?filter_available_datetime__gt=2010-01-01&filter_program=' + progID + '&fields=associated_images,videos',
-				  success: function (e) {
+				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/videos/?filter_type=Episode&filter_program=' + progID + '&fields=associated_images,videos,mediafiles',
+//				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/videos/?filter_available_datetime__gt=2010-01-01&filter_program=' + progID + '&fields=associated_images,videos',
+//				  url: 'http://ec2-184-73-109-163.compute-1.amazonaws.com/apiproxy/videos/?filter_expire_datetime__gt=' + today + '&filter_available_datetime__lt=' + today + '&filter_program=' + progID + '&fields=associated_images,videos',
+						  success: function (e) {
 					  loadProgramVideos( e );
 				  },
 				});
@@ -550,8 +674,8 @@
 	<style>
 		/* There should only be one "selected" element - 
 		   "alsoselected"" is to keep the visual highlight on the "programs" button while the guide is visible. */
-		.selected { border: 3px solid #afcf4d ! important; }
-		div.cat.selected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(126,173,32))); }
+		.selected { border: 3px solid #afcf4d ! important; }	/* 175,207,77 - 150,190,54*/ 
+		div.cat.selected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(150,190,54))); } /*old: to(rgb(126,173,32)));*/
 
 		.alsoselected { border: 3px solid #839b39 ! important; }
 		div.cat.alsoselected { background: -webkit-gradient(linear, left bottom, left top, from(rgb(77,131,11)), to(rgb(94,129,24))); }
@@ -562,16 +686,16 @@
 		#player { position: absolute; width:100%; height: 100%; }
 		html { background: black; margin: 0px; padding: 0px; height: 100%; overflow: hidden }
 		body { margin: 0px; height: 100%; overflow: hidden }
-		div#header { padding: 1em; position: absolute; }
-		#headerbackdrop { opacity: 0.5; position: absolute; left: 0px; top: 0px; width:100%; height: 110px; 
-							background:  -webkit-gradient(linear, left bottom, left top, from(#000), to(#606060)); }
-		#pbslogo { float: left; margin-top:1em }
-		div#categories { aclear: both; width: 85%; display: inline-table; border-spacing: 1em;   }
-		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 2px solid #003344; height: 2em;
+		div#header { padding: 1em; position: absolute; width: 100% }
+		#headerbackdrop { opacity: 0.85; position: absolute; left: 0px; top: 0px; width:100%; height: 110px; 
+							background:  -webkit-gradient(linear, left bottom, left top, from(#000), to(#202020)); }
+		#pbslogo { float: left; margin-top:1em; margin-right: 10px }
+		div#categories { width: 85%; display: inline-table; border-spacing: 1em; margin-top: 8px  }
+		div.cat { display: table-cell; width: 12%; border-radius: 10px; border: 3px solid #00294d; /*#003344;*/ aheight: 1.8em;
 					background: #003355; background: -webkit-gradient(linear, left bottom, left top, from(#003344), to(#007799));
 					text-align: center; vertical-align: middle; 
-					font:  bold 20px "Arial", sans-serif; color: #f0f0f0 }
-		div.cat#rv { width: 18% }
+					font:  bold 20px "Arial", sans-serif; color: #f0f0f0; padding: 4px }
+		div.cat#rv { width: 22% }
 		div.cat#locallogo { background: black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040));
 					border: 2px solid black; 
 					}
@@ -590,11 +714,11 @@
 		#controls .selected.active { background-position: -60px -55px }
 
 		div#boxstrip { position: absolute; width: 100%; height: 170px; left: 0px; bottom: 0px; border-top: 1px solid gray; }
-		div#boxback { position: absolute; width: 100%; height: 100%; background: black; border-top: 1px solid black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#404040)); opacity: 0.75 }
+		div#boxback { position: absolute; width: 100%; height: 100%; background: black; border-top: 1px solid black; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#202020)); opacity: 0.85 }
 		div#boxfront { position: absolute; width: 100%; height: 100% }
 		div#titlestrip {width: 100%; padding: 20px 0px 0px 100px }
-		#title { font: bold 16pt "Arial", sans-serif; color: #ffffff; text-transform: uppercase; }
-		#shortdesc { font: 16pt "Arial", sans-serif; padding-left: 1.5em; color: #afcf4d }
+		#title { font: bold 16pt "Arial", sans-serif; color: #f0f0f0; text-transform: uppercase; }
+		#shortdesc { font: 16pt "Arial", sans-serif; padding-left: 1em; color:#99ff33  }  /* old:#afcf4d*/
 		div.aligner { width: 1012px; margin: 0px auto; padding: 0px 8px }
 		
 		/* scroller buttons */
@@ -610,7 +734,7 @@
 			margin:20px 0px;
 			cursor:pointer;
 			font-size:1px;
-			vertical-align: middle;
+			vertical-align: top;
 		}
 		
 		/* right */
@@ -719,7 +843,7 @@
 					<div id="Programs" class="cat">Programs</div>
 					<div class="cat">Favorites</div>
 					<div class="cat" id="rv">Recently Viewed</div>
-					<div id='locallogo' class="cat"><img id='imglogo' src="kcts.png"></div>
+					<div id='locallogo' class="cat"><img id='imglogo' align=top src="kcts.png"></div>
 				</div>
 			</div>
 		</div>
