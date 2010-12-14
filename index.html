@@ -6,6 +6,7 @@
 		<!--  We use jQuery, and jQuery Tools -->
 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 		<script src="http://cdn.jquerytools.org/1.2.5/full/jquery.tools.min.js"></script> 
+		<script type="text/javascript" src="http://www-tc.pbs.org/video/media/js/swfobject.js?18862"></script>
 	</head>
 	
 	<script> /* Stuff for focus/d-pad navigation  */
@@ -683,7 +684,7 @@
 		#controls .selected { border-style: none ! important; }
 		#controls img.selected, #controls .selected img { text-shadow: 0 0 0.2em #8F7; abackground: #afcf4d }
 
-		#player { position: absolute; width:100%; height: 100%; }
+		#player { position: absolute; width:100%; height: 100%; margin:0px;padding:0px;}
 		html { background: black; margin: 0px; padding: 0px; height: 100%; overflow: hidden }
 		body { margin: 0px; height: 100%; overflow: hidden }
 		div#header { padding: 1em; position: absolute; width: 100% }
@@ -811,28 +812,31 @@
 		div#programguide { position: absolute; width: 100%; height: 100%; left: 0px; top: 0px }
 		div#blackout { position: absolute; width: 100%; height: 100%; background: black; opacity: 0.5 }
 		div#progstrip { position: absolute; width: 100%; height: 150px; left: 0px; top: 40%; }
-		div#progstrip div.aligner { background: #000020; border: 3px solid #c0c0c0; -webkit-border-radius: 20px;
-					background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#003040)); }
+		div#progstrip div.aligner { background: #000020; border: 3px solid #c0c0c0; -webkit-border-radius: 20px; background: -webkit-gradient(linear, left bottom, left top, from(#000), to(#003040)); }
 	</style>
 	<body> <!-- 1152x648 -->
-		<object id="player" width="1080" height="608" >
-		      <param name = "movie" value = "http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.swf"></param>
-		      <param name="flashvars" value="video=1108763899&player=gtv&width=1080&height=608"></param>
+		<div id="flashplayer"></div>
+		<!--
+		<object id="player" width="100%" height="100%" >
+		      <param name="movie" value="http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.appdays.swf"></param>
+		      <param name="flashvars" value="video=1108763899&player=gtv&width=100%&height=100%"></param>
 		      <param name="allowFullScreen" value="true"></param >
-		      <param name ="allowscriptaccess" value = "always" > </param>
-		      <param name="wmode" value="transparent"></param >
-		      <embed name="flashplayer" src="http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.swf"
-		             flashvars="video=1108763899&player=gtv&width=1080&height=608"
-		             type="application/x-shockwave-flash"
-		             allowscriptaccess="always"
-		             wmode="transparent"
-		             allowfullscreen="true"
-		             awidth="1152"
-		             aheight="648"
-		             bgcolor="#000000">
-		      </embed>
+		      <param name="allowscriptaccess" value="always"> </param>
+		      <param name="wmode" value="transparent"></param>
+			  <param name="scale" value="default"></param>
+		      <embed name="flashplayer" src="http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.appdays.swf"
+		            flashvars="video=1108763899&player=gtv&width=100%&height=100%"
+		            type="application/x-shockwave-flash"
+		            allowscriptaccess="always"
+		            wmode="transparent"
+		            allowfullscreen="true"
+		            awidth="100%"
+		            aheight="100%"
+		            bgcolor="#000000"
+					scale="default">
+		   	  </embed>
 		   </object>
-
+		-->
 		<div id='topheader'>
 			<div id="headerbackdrop"></div>
 			<div id='header'>
@@ -915,7 +919,46 @@
 
 			loadSpotlight();
 //			loadProgramGuide();
-    		
+			
+			// URL params generated in PBS Admin CMS:
+			// w : video width [0]
+			// h : video height [1]
+			// c : chapter bar toggle (true|false) [2]
+			// autoplay : play at start (true|false{default}) [3]
+			// start: start time (optional) [4]
+			// end: end time (optional) [5]
+			// embed: embed viral player (optional <= 20min) [6]
+			// player: default PBS_Partner_Player_v1 (if INGEST_ONLY role)
+
+			var flashvars = {
+			affiliate:"",
+			width: document.width,
+			height: document.height,
+			autoplay: true,
+			start: 0,
+			end: 0,
+			player: "gtv",
+			chapterbar: "false",
+			reporting_url: "http://video.pbs.org/reporterror/",
+			embed: "false", 
+			video: "1108763899",
+			balance:"true"
+			//encodeURIComponent("http://video.pbs.org/videoPlayerInfo/1366438660/?player="+playerID+"&start="+start+"&end="+end+"&balance=true")
+			};
+
+			var params = {
+			    bgColor: "0x000000",
+			    scale: "noscale",
+			    menu: "true",
+			    salign: "tl",
+			    allowFullScreen: "true",
+			    allowScriptAccess: "always",
+				//awidth:"100%",
+				//aheight:"100%",
+			    wmode: "transparent"
+			};
+			var attributes = { id:"player" };
+			swfobject.embedSWF("http://www-tc.pbs.org/video_qa/media/swf/PBSPlayer.appdays.swf", "flashplayer", flashvars.width, flashvars.height, "9.0.159", "http://www-tc.pbs.org/video/media/swf/expressInstall.swf?18862", flashvars, params, attributes);
 		});
 
 	
